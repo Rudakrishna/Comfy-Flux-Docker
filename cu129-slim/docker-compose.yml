@@ -2,13 +2,15 @@ services:
 
   comfyui:
     init: true
-    container_name: comfyui
+    container_name: comfy
     build:
       context: .
       dockerfile: Dockerfile
     image: "yanwk/comfyui-boot:cu129-slim"
     ports:
       - "8188:8188"
+      - "8888:8888"
+      - "8384:8384"
     volumes:
       - "./storage:/root"
       - "./storage-models/models:/root/ComfyUI/models"
@@ -19,6 +21,8 @@ services:
       - "./storage-user/workflows:/root/ComfyUI/user/default/workflows"
     environment:
       - CLI_ARGS=
+      - HUGGINGFACE_TOKEN_FILE=/run/secrets/hf_token
+      - CIVITAI_TOKEN_FILE=/run/secrets/civitai_token
     security_opt:
       - "label=type:nvidia_container_t"
     deploy:
