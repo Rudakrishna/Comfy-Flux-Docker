@@ -4,6 +4,19 @@ set -e
 
 echo "########################################"
 
+# Read tokens from files if they exist
+if [ -n "${HUGGINGFACE_TOKEN_FILE:-}" ] && [ -f "${HUGGINGFACE_TOKEN_FILE}" ]; then
+  HUGGINGFACE_TOKEN=$(cat "${HUGGINGFACE_TOKEN_FILE}")
+  export HUGGINGFACE_TOKEN
+  log "Loaded Hugging Face token from file"
+fi
+
+if [ -n "${CIVITAI_TOKEN_FILE:-}" ] && [ -f "${CIVITAI_TOKEN_FILE}" ]; then
+  CIVITAI_TOKEN=$(cat "${CIVITAI_TOKEN_FILE}")
+  export CIVITAI_TOKEN
+  log "Loaded CivitAI token from file"
+fi
+
 # Run user's set-proxy script
 cd /root
 if [ ! -f "/root/user-scripts/set-proxy.sh" ] ; then
