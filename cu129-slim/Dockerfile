@@ -68,6 +68,8 @@ ninja \
 aria2 \
 btop \
 nvtop \
+rclone \
+syncthing \
 nano \
 findutils \
 fish \
