@@ -17,6 +17,11 @@ if [ -n "${CIVITAI_TOKEN_FILE:-}" ] && [ -f "${CIVITAI_TOKEN_FILE}" ]; then
   log "Loaded CivitAI token from file"
 fi
 
+# Hugging Face login
+if [[ -n "${HUGGINGFACE_TOKEN:-}" ]]; then
+  try hf auth login --token "${HUGGINGFACE_TOKEN}"
+fi
+
 # Run user's set-proxy script
 cd /root
 if [ ! -f "/root/user-scripts/set-proxy.sh" ] ; then
@@ -45,6 +50,38 @@ else
     echo "[INFO] Using existing ComfyUI in user storage..."
 fi
 
+# Syncthing
+if [[ "${START_SYNCTHING:-1}" != "0" ]]; then
+  if command -v syncthing >/dev/null 2>&1; then
+    log "Initializing Syncthing..."
+    
+    # Set environment variables for Syncthing
+    export ST_CONFIG="${ST_CONFIG:-/root/.config/syncthing}"
+    export SYNC_FOLDER="${SYNC_FOLDER:-/workspace/ComfyUI/output}"
+    
+    # Ensure the sync folder exists
+    mkdir -p "$SYNC_FOLDER"
+    chmod 777 "$SYNC_FOLDER"
+    
+    # Initialize Syncthing configuration
+    if [ -f "${WORKSPACE}/scripts/syncthing-init.sh" ]; then
+      log "Running Syncthing initialization script..."
+      bash "${WORKSPACE}/scripts/syncthing-init.sh"
+    else
+      log "Warning: Syncthing initialization script not found at ${WORKSPACE}/scripts/syncthing-init.sh"
+    fi
+    
+    # Start Syncthing in the background
+    log "Starting Syncthing..."
+    nohup syncthing -no-browser \
+      -gui-address=0.0.0.0:8384 \
+      -home "$ST_CONFIG" \
+      -logfile=/dev/stdout \
+      -log-max-old-files=3 \
+      -log-max-size=1 \
+      -verbose \
+      > "${WORKSPACE}/syncthing.log" 2>
+      
 # Run user's pre-start script
 cd /root
 if [ ! -f "/root/user-scripts/pre-start.sh" ] ; then
