@@ -204,22 +204,21 @@ ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
 # Jupyter + OpenWebUI + HF CLI + QOL
 RUN set -eux; \
-  micromamba run -n comfy pip install \
-    pyyaml gdown comfy-cli jupyter-server jupyterlab ipykernel jupyterlab-lsp \
-    open-webui uv typer opencv-python rich "huggingface_hub[cli]"
+    pip install \
+    pyyaml gdown comfy-cli jupyter-server jupyterlab ipykernel jupyterlab-lsp "huggingface_hub[cli]"
     
 ################################################################################
 # Pre-download a ComfyUI bundle in the image
 
-WORKDIR /default-comfyui-bundle
-
-RUN bash /builder-scripts/preload-cache.sh
-
-# Install deps (comfyui-frontend-package, etc) pair to the preloaded ComfyUI version
-RUN pip install \
-        -r '/default-comfyui-bundle/ComfyUI/requirements.txt' \
-        -r '/default-comfyui-bundle/ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt' \
-    && pip list
+# ComfyUI + Manager
+RUN set -eux; \
+  mkdir -p /workspace
+  cd /workspace
+  git clone --depth=1 https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI; \
+  mkdir -p /workspace/ComfyUI/custom_nodes; \
+  git clone --depth=1 https://github.com/Comfy-Org/ComfyUI-Manager.git /workspace/ComfyUI/custom_nodes/ComfyUI-Manager; \
+  pip install -r /workspace/ComfyUI/requirements.txt || true; \
+  pip install -r /workspace/ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt || true
 
 RUN for repo in \
     https://github.com/city96/ComfyUI-GGUF.git \
