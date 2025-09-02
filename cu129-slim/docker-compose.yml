@@ -12,13 +12,21 @@ services:
       - "8888:8888"
       - "8384:8384"
     volumes:
-      - "./storage:/root"
-      - "./storage-models/models:/root/ComfyUI/models"
-      - "./storage-models/hf-hub:/root/.cache/huggingface/hub"
-      - "./storage-models/torch-hub:/root/.cache/torch/hub"
-      - "./storage-user/input:/root/ComfyUI/input"
-      - "./storage-user/output:/root/ComfyUI/output"
-      - "./storage-user/workflows:/root/ComfyUI/user/default/workflows"
+      - "./storage:/workspace"
+      - "./storage-models/models:/workspace/ComfyUI/models"
+      - "./storage-models/hf-hub:/workspace/.cache/huggingface/hub"
+      - "./storage-models/torch-hub:/workspace/.cache/torch/hub"
+      - "./storage-user/input:/workspace/ComfyUI/input"
+      - "./storage-user/output:/workspace/ComfyUI/output"
+      - "./storage-user/workflows:/workspace/ComfyUI/user/default/workflows"
+      - "/models:/workspace/models"
+    secrets:
+      - source: hf_token
+        target: hf_token
+        mode: 0400
+      - source: civitai_token
+        target: civitai_token
+        mode: 0400
     environment:
       - CLI_ARGS=
       - HUGGINGFACE_TOKEN_FILE=/run/secrets/hf_token
