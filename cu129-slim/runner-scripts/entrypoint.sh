@@ -23,27 +23,35 @@ if [[ -n "${HUGGINGFACE_TOKEN:-}" ]]; then
 fi
 
 # Run user's set-proxy script
-cd /root
-if [ ! -f "/root/user-scripts/set-proxy.sh" ] ; then
-    mkdir -p /root/user-scripts
-    cp /runner-scripts/set-proxy.sh.example /root/user-scripts/set-proxy.sh
+cd /workspace
+if [ ! -f "/workspace/user-scripts/set-proxy.sh" ] ; then
+    mkdir -p /workspace/user-scripts
+    cp /runner-scripts/set-proxy.sh.example /workspace/user-scripts/set-proxy.sh
 else
     echo "[INFO] Running set-proxy script..."
 
-    chmod +x /root/user-scripts/set-proxy.sh
-    source /root/user-scripts/set-proxy.sh
+    chmod +x /workspace/user-scripts/set-proxy.sh
+    source /workspace/user-scripts/set-proxy.sh
 fi ;
 
+# Jupyter
+if command -v jupyter >/dev/null 2>&1; then
+  try jupyter lab --ip=0.0.0.0 --allow-root --port=${JUPYTER_PORT:-8888} \
+    --NotebookApp.token="${JUPYTER_TOKEN:-jupyter}" \
+    --NotebookApp.allow_origin='*' --no-browser >/dev/null 2>&1 &
+  log "Jupyter Lab on :${JUPYTER_PORT:-8888}"
+fi
+
 # Copy ComfyUI from cache to workdir if it doesn't exist
-cd /root
-if [ ! -f "/root/ComfyUI/main.py" ] ; then
-    mkdir -p /root/ComfyUI
+cd /workspace
+if [ ! -f "/workspace/ComfyUI/main.py" ] ; then
+    mkdir -p /workspace/ComfyUI
     # 'cp --archive': all file timestamps and permissions will be preserved
     # 'cp --update=none': do not overwrite
-    if cp --archive --update=none "/default-comfyui-bundle/ComfyUI/." "/root/ComfyUI/" ; then
+    if cp --archive --update=none "/default-comfyui-bundle/ComfyUI/." "/workspace/ComfyUI/" ; then
         echo "[INFO] Setting up ComfyUI..."
     else
-        echo "[ERROR] Failed to copy ComfyUI bundle to '/root/ComfyUI'" >&2
+        echo "[ERROR] Failed to copy ComfyUI bundle to '/workspace/ComfyUI'" >&2
         exit 1
     fi
 else
@@ -56,7 +64,7 @@ if [[ "${START_SYNCTHING:-1}" != "0" ]]; then
     log "Initializing Syncthing..."
     
     # Set environment variables for Syncthing
-    export ST_CONFIG="${ST_CONFIG:-/root/.config/syncthing}"
+    export ST_CONFIG="${ST_CONFIG:-/workspace/.config/syncthing}"
     export SYNC_FOLDER="${SYNC_FOLDER:-/workspace/ComfyUI/output}"
     
     # Ensure the sync folder exists
@@ -83,29 +91,29 @@ if [[ "${START_SYNCTHING:-1}" != "0" ]]; then
       > "${WORKSPACE}/syncthing.log" 2>
       
 # Run user's pre-start script
-cd /root
-if [ ! -f "/root/user-scripts/pre-start.sh" ] ; then
-    mkdir -p /root/user-scripts
-    cp /runner-scripts/pre-start.sh.example /root/user-scripts/pre-start.sh
+cd /workspace
+if [ ! -f "/workspace/user-scripts/pre-start.sh" ] ; then
+    mkdir -p /workspace/user-scripts
+    cp /runner-scripts/pre-start.sh.example /workspace/user-scripts/pre-start.sh
 else
     echo "[INFO] Running pre-start script..."
 
-    chmod +x /root/user-scripts/pre-start.sh
-    source /root/user-scripts/pre-start.sh
+    chmod +x /workspace/user-scripts/pre-start.sh
+    source /workspace/user-scripts/pre-start.sh
 fi ;
 
 echo "[INFO] Starting ComfyUI..."
 echo "########################################"
 
 # Let .pyc files be stored in one place
-export PYTHONPYCACHEPREFIX="/root/.cache/pycache"
-# Let PIP install packages to /root/.local
+export PYTHONPYCACHEPREFIX="/workspace/.cache/pycache"
+# Let PIP install packages to /workspace/.local
 export PIP_USER=true
 # Add above to PATH
-export PATH="${PATH}:/root/.local/bin"
-# Suppress [WARNING: Running pip as the 'root' user]
-export PIP_ROOT_USER_ACTION=ignore
+export PATH="${PATH}:/workspace/.local/bin"
+# Suppress [WARNING: Running pip as the 'workspace' user]
+export PIP_workspace_USER_ACTION=ignore
 
-cd /root
+cd /workspace
 
 python3 ./ComfyUI/main.py --listen --port 8188 ${CLI_ARGS}
