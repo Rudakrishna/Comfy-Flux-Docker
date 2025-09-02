@@ -15,8 +15,7 @@ RUN set -eu
 # Python and tools
 # Since this image is so big, we use openSUSE-verified PIP packages for compatibility.
 
-RUN --mount=type=cache,target=/var/cache/zypp \
-    zypper addrepo --check --refresh --priority 90 \
+RUN zypper addrepo --check --refresh --priority 90 \
         'https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/Essentials/' packman-essentials \
     && zypper --gpg-auto-import-keys \
         install --no-confirm --auto-agree-with-licenses \
@@ -38,8 +37,7 @@ python312-scikit-image \
 python312-scikit-learn \
 python312-scipy
 
-RUN --mount=type=cache,target=/var/cache/zypp \
-    zypper --gpg-auto-import-keys \
+RUN zypper --gpg-auto-import-keys \
         install --no-confirm --auto-agree-with-licenses \
 python312-opencv \
 opencv \
@@ -49,8 +47,7 @@ Mesa-libEGL-devel \
 libgthread-2_0-0 \
 libQt5OpenGL5
 
-RUN --mount=type=cache,target=/var/cache/zypp \
-    zypper --gpg-auto-import-keys \
+RUN zypper --gpg-auto-import-keys \
         install --no-confirm --auto-agree-with-licenses \
 python312-ffmpeg-python \
 python312-imageio \
@@ -62,12 +59,16 @@ python312-GitPython \
 python312-pygit2 \
 git
 
-RUN --mount=type=cache,target=/var/cache/zypp \
-    zypper --gpg-auto-import-keys \
+RUN set -eux; curl -fsSL https://getcroc.schollz.com | bash
+
+RUN zypper --gpg-auto-import-keys \
         install --no-confirm --auto-agree-with-licenses \
 make \
 ninja \
 aria2 \
+btop \
+nvtop \
+nano \
 findutils \
 fish \
 fd \
@@ -90,8 +91,7 @@ ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 # Compatible with CUDA 12.9.
 # https://docs.nvidia.com/cuda/archive/12.9.1/cuda-installation-guide-linux/index.html#host-compiler-support-policy
 
-RUN --mount=type=cache,target=/var/cache/zypp \
-    zypper --gpg-auto-import-keys \
+RUN zypper --gpg-auto-import-keys \
         install --no-confirm --auto-agree-with-licenses \
 gcc14 \
 gcc14-c++ \
@@ -113,8 +113,7 @@ cpp14 \
 
 # PyTorch, xFormers
 # Break down the steps, so we have more but smaller image layers.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip list \
+RUN pip list \
     && pip install \
         --upgrade pip wheel setuptools
 
@@ -122,8 +121,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 #    (first run to show logs, then grep the output)
 # 2. Extract the package names and versions from the output
 #    Example: nvidia-cuda-runtime-cu12-12.6.77 -> nvidia-cuda-runtime-cu12==12.6.77
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
+RUN pip install \
         --dry-run xformers torchvision torchaudio \
         --index-url https://download.pytorch.org/whl/cu129 \
     && pip install \
@@ -137,56 +135,47 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && echo "====================================="
 
 # Install big 'nvidia-' packages first
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-deps \
+RUN pip install --no-deps \
         "$(grep '^nvidia-cublas' /tmp/packages-nvidia.txt)" \
         --index-url https://download.pytorch.org/whl/cu129
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-deps \
+RUN pip install --no-deps \
         "$(grep '^nvidia-cudnn' /tmp/packages-nvidia.txt)" \
         --index-url https://download.pytorch.org/whl/cu129
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-deps \
+RUN pip install --no-deps \
         "$(grep '^nvidia-cusparse-' /tmp/packages-nvidia.txt)" \
         --index-url https://download.pytorch.org/whl/cu129
 
 # Install all 'nvidia-' packages, 5 at a time
-RUN --mount=type=cache,target=/root/.cache/pip \
-    head -n 5 /tmp/packages-nvidia.txt | while read -r pkg; do \
+RUN head -n 5 /tmp/packages-nvidia.txt | while read -r pkg; do \
         pip install --no-deps "$pkg" \
             --index-url https://download.pytorch.org/whl/cu129; \
     done
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    sed -n '6,10p' /tmp/packages-nvidia.txt | while read -r pkg; do \
+RUN sed -n '6,10p' /tmp/packages-nvidia.txt | while read -r pkg; do \
         pip install --no-deps "$pkg" \
             --index-url https://download.pytorch.org/whl/cu129; \
     done
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    tail -n +11 /tmp/packages-nvidia.txt | while read -r pkg; do \
+RUN tail -n +11 /tmp/packages-nvidia.txt | while read -r pkg; do \
         pip install --no-deps "$pkg" \
             --index-url https://download.pytorch.org/whl/cu129; \
     done
 
 # Install PyTorch alone
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-deps \
+RUN pip install --no-deps \
         "$(grep -oP 'torch-\S+' /tmp/packages.txt | sed 's/\(.*\)-\([^-]*\)$/\1==\2/')" \
         --index-url https://download.pytorch.org/whl/cu129 \
     && rm -v /tmp/packages.txt /tmp/packages-nvidia.txt
 
 # Install everything else, also works as a fail-safe
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
+RUN pip install \
         xformers torchvision torchaudio \
         --index-url https://download.pytorch.org/whl/cu129
 
 # Install Triton (redundant)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
+RUN pip install \
         triton pytorch-triton \
         --index-url https://download.pytorch.org/whl/cu129
 
@@ -211,21 +200,12 @@ ENV LD_LIBRARY_PATH="/usr/local/lib64/python3.12/site-packages/torch/lib\
 :/usr/local/lib/python3.12/site-packages/nvidia/nvtx/lib\
 ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
-# Deps for ComfyUI & custom nodes
-COPY builder-scripts/.  /builder-scripts/
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
-        -r /builder-scripts/pak3.txt
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
-        -r /builder-scripts/pak5.txt
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
-        -r /builder-scripts/pak7.txt
-
+# Jupyter + OpenWebUI + HF CLI + QOL
+RUN set -eux; \
+  micromamba run -n comfy pip install \
+    pyyaml gdown comfy-cli jupyter-server jupyterlab ipykernel jupyterlab-lsp \
+    open-webui uv typer opencv-python rich "huggingface_hub[cli]"
+    
 ################################################################################
 # Pre-download a ComfyUI bundle in the image
 
@@ -234,11 +214,72 @@ WORKDIR /default-comfyui-bundle
 RUN bash /builder-scripts/preload-cache.sh
 
 # Install deps (comfyui-frontend-package, etc) pair to the preloaded ComfyUI version
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
+RUN pip install \
         -r '/default-comfyui-bundle/ComfyUI/requirements.txt' \
         -r '/default-comfyui-bundle/ComfyUI/custom_nodes/ComfyUI-Manager/requirements.txt' \
     && pip list
+
+RUN for repo in \
+    https://github.com/city96/ComfyUI-GGUF.git \
+    https://github.com/crystian/ComfyUI-Crystools.git \
+    https://github.com/ltdrdata/was-node-suite-comfyui.git \
+    https://github.com/bash-j/mikey_nodes.git \
+    https://github.com/chrisgoringe/cg-use-everywhere.git \
+    https://github.com/jags111/efficiency-nodes-comfyui.git \
+    https://github.com/kijai/ComfyUI-KJNodes.git \
+    https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git \
+    https://github.com/rgthree/rgthree-comfy.git \
+    https://github.com/shiimizu/ComfyUI_smZNodes.git \
+    https://github.com/yolain/ComfyUI-Easy-Use.git \
+    https://github.com/melMass/comfy_mtb.git \
+    https://github.com/XLabs-AI/x-flux-comfyui.git \
+    https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git \
+    https://github.com/JPS-GER/ComfyUI_JPS-Nodes.git \
+    https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
+    https://github.com/Jordach/comfy-plasma.git \
+    https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git \
+    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
+    https://github.com/Fannovel16/comfyui_controlnet_aux.git \
+    https://github.com/kijai/ComfyUI-Florence2.git \
+    https://github.com/ShmuelRonen/ComfyUI-LatentSyncWrapper.git \
+    https://github.com/theUpsider/ComfyUI-Logic.git \
+    https://github.com/cubiq/ComfyUI_essentials.git \
+    https://github.com/chrisgoringe/cg-image-picker.git \
+    https://github.com/chflame163/ComfyUI_LayerStyle.git \
+    https://github.com/ClownsharkBatwing/RES4LYF.git \
+    https://github.com/welltop-cn/ComfyUI-TeaCache.git \
+    https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git \
+    https://github.com/Jonseed/ComfyUI-Detail-Daemon.git \
+    https://github.com/kijai/ComfyUI-WanVideoWrapper.git \
+    https://github.com/chflame163/ComfyUI_LayerStyle_Advance.git \
+    https://github.com/BadCafeCode/masquerade-nodes-comfyui.git \
+    https://github.com/1038lab/ComfyUI-RMBG.git \
+    https://github.com/M1kep/ComfyLiterals.git \
+    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
+    https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git \
+    https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git \
+    https://github.com/mcmonkeyprojects/sd-dynamic-thresholding.git \
+    https://github.com/twri/sdxl_prompt_styler.git \
+    https://github.com/bytedance/ComfyUI_InfiniteYou.git \
+    https://github.com/ZenAI-Vietnam/ComfyUI_InfiniteYou.git \
+    https://github.com/FizzleDorf/ComfyUI_FizzNodes.git \
+    https://github.com/comfyanonymous/ComfyUI_TensorRT \
+    https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git; \
+    do \
+        cd /workspace/ComfyUI/custom_nodes; \
+        repo_dir=$(basename "$repo" .git); \
+        if [ "$repo" = "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git" ]; then \
+            git clone --recursive "$repo"; \
+        else \
+            git clone "$repo"; \
+        fi; \
+        if [ -f "/workspace/ComfyUI/custom_nodes/$repo_dir/requirements.txt" ]; then \
+            micromamba run -n comfy pip install -r "/workspace/ComfyUI/custom_nodes/$repo_dir/requirements.txt"; \
+        fi; \
+        if [ -f "/workspace/ComfyUI/custom_nodes/$repo_dir/install.py" ]; then \
+            micromamba run -n comfy python "/workspace/ComfyUI/custom_nodes/$repo_dir/install.py"; \
+        fi; \
+    done
 
 ################################################################################
 
@@ -249,8 +290,8 @@ RUN du -ah /root \
 COPY runner-scripts/.  /runner-scripts/
 
 USER root
-VOLUME /root
-WORKDIR /root
+VOLUME /workspace
+WORKDIR /workspace
 EXPOSE 8188
 ENV CLI_ARGS=""
 CMD ["bash","/runner-scripts/entrypoint.sh"]
